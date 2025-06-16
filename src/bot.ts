@@ -171,6 +171,16 @@ function createMcpServer(bot: any)
 
 function registerPositionTools(server: McpServer, bot: any)
 {
+	function waitForMove(bot: any) {
+		return new Promise<void>(resolve => {
+			const handler = () => {
+				bot.removeListener('move', handler);
+				resolve();
+			};
+			bot.on('move', handler);
+		});
+	}
+
 	server.tool(
 		"get-position",
 		"Get the current position of the bot",
@@ -179,14 +189,11 @@ function registerPositionTools(server: McpServer, bot: any)
 		{
 			try
 			{
-				// Move the bot slightly to force a position update
-				const originalY = bot.entity.position.y;
-				await bot.setControlState('jump', true);
-				await new Promise(res => setTimeout(res, 250)); // Jump for 250ms
-				await bot.setControlState('jump', false);
-				// Wait for the bot to land (or timeout after 1s)
-				await new Promise(res => setTimeout(res, 500));
-
+				// Wait for the next move event or timeout after 500ms
+				await Promise.race([
+					waitForMove(bot),
+					new Promise(res => setTimeout(res, 500))
+				]);
 				const position = bot.entity.position;
 				const pos = 
 				{
